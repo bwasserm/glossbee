@@ -1,0 +1,676 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 334               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 335               	.LC0:
+ 336 0000 496E 7465 		.string	"Interrupt"
+ 336      7272 7570 
+ 336      7400 
+ 337               	.LC1:
+ 338 000a 5365 6E64 		.string	"Sending\r"
+ 338      696E 670D 
+ 338      00
+ 339               	.LC2:
+ 340 0013 2D2D 2D20 		.string	"--- RF_TX ERROR ---\r"
+ 340      5246 5F54 
+ 340      5820 4552 
+ 340      524F 5220 
+ 340      2D2D 2D0D 
+ 341               		.text
+ 343               	.global	fire_tx
+ 345               	fire_tx:
+ 346               		.stabd	46,0,0
+   1:main.c        **** /******************************************************************************
+   2:main.c        **** *  Nano-RK, a real-time operating system for sensor networks.
+   3:main.c        **** *  Copyright (C) 2007, Real-Time and Multimedia Lab, Carnegie Mellon University
+   4:main.c        **** *  All rights reserved.
+   5:main.c        **** *
+   6:main.c        **** *  This is the Open Source Version of Nano-RK included as part of a Dual
+   7:main.c        **** *  Licensing Model. If you are unsure which license to use please refer to:
+   8:main.c        **** *  http://www.nanork.org/nano-RK/wiki/Licensing
+   9:main.c        **** *
+  10:main.c        **** *  This program is free software: you can redistribute it and/or modify
+  11:main.c        **** *  it under the terms of the GNU General Public License as published by
+  12:main.c        **** *  the Free Software Foundation, version 2.0 of the License.
+  13:main.c        **** *
+  14:main.c        **** *  This program is distributed in the hope that it will be useful,
+  15:main.c        **** *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  16:main.c        **** *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  17:main.c        **** *  GNU General Public License for more details.
+  18:main.c        **** *
+  19:main.c        **** *  You should have received a copy of the GNU General Public License
+  20:main.c        **** *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  21:main.c        **** *
+  22:main.c        **** *******************************************************************************/
+  23:main.c        **** 
+  24:main.c        **** 
+  25:main.c        **** #include <nrk.h>
+  26:main.c        **** #include <nrk_error.h>
+  27:main.c        **** #include <nrk_timer.h>
+  28:main.c        **** #include <nrk_driver_list.h>
+  29:main.c        **** #include <nrk_driver.h>
+  30:main.c        **** #include <nrk_ext_int.h>
+  31:main.c        **** #include <include.h>
+  32:main.c        **** #include <ulib.h>
+  33:main.c        **** #include <stdio.h>
+  34:main.c        **** #include <hal.h>
+  35:main.c        **** #include <basic_rf.h>
+  36:main.c        **** #include <avr/sleep.h>
+  37:main.c        **** #include <avr/wdt.h>
+  38:main.c        **** #include <avr/eeprom.h>
+  39:main.c        **** 
+  40:main.c        **** RF_TX_INFO rfTxInfo;
+  41:main.c        **** RF_RX_INFO rfRxInfo;
+  42:main.c        **** uint8_t tx_buf[RF_MAX_PAYLOAD_SIZE];
+  43:main.c        **** uint8_t rx_buf[RF_MAX_PAYLOAD_SIZE];
+  44:main.c        **** //------------------------------------------------------------------------------
+  45:main.c        **** //      void main (void)
+  46:main.c        **** //
+  47:main.c        **** //      DESCRIPTION:
+  48:main.c        **** //              Startup routine and main loop
+  49:main.c        **** //------------------------------------------------------------------------------
+  50:main.c        **** void my_callback(uint16_t global_slot );
+  51:main.c        **** void fire_tx();
+  52:main.c        **** 
+  53:main.c        **** int main (void)
+  54:main.c        **** {
+  55:main.c        ****     uint8_t cnt,i,length,n;
+  56:main.c        **** 
+  57:main.c        ****     nrk_setup_ports(); 
+  58:main.c        ****     nrk_setup_uart (UART_BAUDRATE_115K2);
+  59:main.c        ****  
+  60:main.c        ****     printf( "GLOSSBee TX\r\n" ); 
+  61:main.c        ****     nrk_led_clr(0); 
+  62:main.c        ****     nrk_led_clr(1); 
+  63:main.c        ****     nrk_led_clr(2); 
+  64:main.c        ****     nrk_led_clr(3); 
+  65:main.c        **** 
+  66:main.c        ****     rfRxInfo.pPayload = rx_buf;
+  67:main.c        ****     rfRxInfo.max_length = RF_MAX_PAYLOAD_SIZE;
+  68:main.c        ****     rfRxInfo.ackRequest= 0;
+  69:main.c        **** 		nrk_int_enable();
+  70:main.c        ****     rf_init (&rfRxInfo, 13, 0x2420, 0x1215);
+  71:main.c        ****     //rf_rx_on();
+  72:main.c        ****     
+  73:main.c        ****     nrk_gpio_direction(NRK_DEBUG_2, NRK_PIN_INPUT);
+  74:main.c        ****     i = nrk_ext_int_configure( NRK_EXT_INT_2,NRK_LOW_TRIGGER, &fire_tx ); 
+  75:main.c        ****     nrk_ext_int_enable ( NRK_EXT_INT_2);
+  76:main.c        ****     printf("int return code: %d\r\n", i);
+  77:main.c        **** 
+  78:main.c        ****     printf( "Loop starting...\r\n" );
+  79:main.c        ****     //nrk_led_set(ORANGE_LED);
+  80:main.c        ****     
+  81:main.c        **** 		while(1){
+  82:main.c        **** 				//nrk_led_clr(GREEN_LED);
+  83:main.c        ****         
+  84:main.c        ****         // RX STUFF
+  85:main.c        ****         /*
+  86:main.c        **** 				rf_init (&rfRxInfo, 13, 0x2420, 0x1215);
+  87:main.c        ****         rf_set_rx (&rfRxInfo, 13); 	
+  88:main.c        **** 				*/
+  89:main.c        **** 
+  90:main.c        **** 				//rf_polling_rx_on();
+  91:main.c        **** /*
+  92:main.c        ****         while ((n = rf_rx_check_sfd()) == 0)
+  93:main.c        **** 						continue; 
+  94:main.c        **** 				nrk_led_set(GREEN_LED);
+  95:main.c        ****  				if (n != 0) {
+  96:main.c        ****         		n = 0;
+  97:main.c        ****         		// Packet on its way
+  98:main.c        ****     				cnt=0;
+  99:main.c        ****         		while ((n = rf_polling_rx_packet ()) == 0) {
+ 100:main.c        **** 								if (cnt > 50) {
+ 101:main.c        ****                 		//printf( "PKT Timeout\r\n" );
+ 102:main.c        **** 										break;		// huge timeout as failsafe
+ 103:main.c        **** 								}
+ 104:main.c        ****         				halWait(10000);
+ 105:main.c        **** 								cnt++;
+ 106:main.c        **** 						}
+ 107:main.c        ****     		}
+ 108:main.c        **** 
+ 109:main.c        **** 				//rf_rx_off();
+ 110:main.c        ****     		if (n == 1) {
+ 111:main.c        ****     				nrk_led_clr(RED_LED);
+ 112:main.c        ****         		// CRC and checksum passed
+ 113:main.c        **** 						printf("rx packet received\r\n");
+ 114:main.c        **** 						printf("SEQNUM: %d  SRCADDR: 0x%x  SNR: %d\r\n[",
+ 115:main.c        **** 								rfRxInfo.seqNumber, rfRxInfo.srcAddr, rfRxInfo.rssi);
+ 116:main.c        ****         	
+ 117:main.c        **** 						for(i=0; i<rfRxInfo.length; i++ )
+ 118:main.c        **** 								printf( "%c", rfRxInfo.pPayload[i]);
+ 119:main.c        **** 						printf( "]\r\n\r\n" );
+ 120:main.c        ****     		} 
+ 121:main.c        **** 				else if(n != 0){ 
+ 122:main.c        **** 						printf( "CRC failed!\r\n" ); nrk_led_set(RED_LED); 
+ 123:main.c        **** 				}
+ 124:main.c        **** */
+ 125:main.c        **** 
+ 126:main.c        ****       // TX Stuff    
+ 127:main.c        ****       // Code to control the CC2591 
+ 128:main.c        ****       /*
+ 129:main.c        ****          DPDS1=0x3; 
+ 130:main.c        ****          DDRG=0x1;
+ 131:main.c        ****          PORTG=0x1;
+ 132:main.c        **** 
+ 133:main.c        ****          DDRE=0xE0;
+ 134:main.c        ****          PORTE=0xE0;
+ 135:main.c        **** 
+ 136:main.c        **** 				nrk_led_set(GREEN_LED);
+ 137:main.c        ****     		rfTxInfo.pPayload=tx_buf;
+ 138:main.c        ****     		sprintf( tx_buf, "This is my string counter %d", cnt); 
+ 139:main.c        ****     		rfTxInfo.length= strlen(tx_buf) + 1;
+ 140:main.c        **** 				rfTxInfo.destAddr = 0x1215;
+ 141:main.c        **** 				rfTxInfo.cca = 0;
+ 142:main.c        **** 				rfTxInfo.ackRequest = 0;
+ 143:main.c        **** 				
+ 144:main.c        **** 				printf( "Sending\r\n" );
+ 145:main.c        **** 				if(rf_tx_packet(&rfTxInfo) != 1){
+ 146:main.c        **** 					printf("--- RF_TX ERROR ---\r\n");
+ 147:main.c        ****         }
+ 148:main.c        **** 				cnt++;
+ 149:main.c        **** 		
+ 150:main.c        **** 				for(i=0; i<80; i++ ){
+ 151:main.c        **** 					halWait(10000);
+ 152:main.c        ****         }
+ 153:main.c        **** 				nrk_led_clr(GREEN_LED);
+ 154:main.c        **** 				for(i=0; i<20; i++ ){
+ 155:main.c        **** 					halWait(10000);
+ 156:main.c        ****         }
+ 157:main.c        ****     */
+ 158:main.c        **** 
+ 159:main.c        **** 		}
+ 160:main.c        **** 
+ 161:main.c        **** }
+ 162:main.c        **** 
+ 163:main.c        **** void my_callback(uint16_t global_slot )
+ 164:main.c        **** {
+ 165:main.c        **** 		static uint16_t cnt;
+ 166:main.c        **** 
+ 167:main.c        **** 		printf( "callback %d %d\n",global_slot,cnt );
+ 168:main.c        **** 		cnt++;
+ 169:main.c        **** }
+ 170:main.c        **** 
+ 171:main.c        **** void fire_tx(){
+ 348               	.LM0:
+ 349               	.LFBB1:
+ 350 0000 CF93      		push r28
+ 351 0002 DF93      		push r29
+ 352               	/* prologue: function */
+ 353               	/* frame size = 0 */
+ 354               	/* stack size = 2 */
+ 355               	.L__stack_usage = 2
+ 172:main.c        ****   nrk_led_toggle(ORANGE_LED);
+ 357               	.LM1:
+ 358 0004 82E0      		ldi r24,lo8(2)
+ 359 0006 90E0      		ldi r25,0
+ 360 0008 0E94 0000 		call nrk_led_toggle
+ 173:main.c        ****   DPDS1=0x3; 
+ 362               	.LM2:
+ 363 000c 83E0      		ldi r24,lo8(3)
+ 364 000e 8093 3701 		sts 311,r24
+ 174:main.c        ****   DDRG=0x1;
+ 366               	.LM3:
+ 367 0012 81E0      		ldi r24,lo8(1)
+ 368 0014 83BB      		out 0x13,r24
+ 175:main.c        ****   PORTG=0x1;
+ 370               	.LM4:
+ 371 0016 84BB      		out 0x14,r24
+ 176:main.c        **** 
+ 177:main.c        ****   DDRE=0xE0;
+ 373               	.LM5:
+ 374 0018 80EE      		ldi r24,lo8(-32)
+ 375 001a 8DB9      		out 0xd,r24
+ 178:main.c        ****   PORTE=0xE0;
+ 377               	.LM6:
+ 378 001c 8EB9      		out 0xe,r24
+ 179:main.c        ****   rfTxInfo.pPayload=tx_buf;
+ 380               	.LM7:
+ 381 001e C0E0      		ldi r28,lo8(tx_buf)
+ 382 0020 D0E0      		ldi r29,hi8(tx_buf)
+ 383 0022 D093 0000 		sts rfTxInfo+3+1,r29
+ 384 0026 C093 0000 		sts rfTxInfo+3,r28
+ 180:main.c        ****   sprintf( tx_buf, "Interrupt"); 
+ 386               	.LM8:
+ 387 002a 60E0      		ldi r22,lo8(.LC0)
+ 388 002c 70E0      		ldi r23,hi8(.LC0)
+ 389 002e CE01      		movw r24,r28
+ 390 0030 0E94 0000 		call strcpy
+ 181:main.c        ****   rfTxInfo.length= strlen(tx_buf) + 1;
+ 392               	.LM9:
+ 393 0034 FE01      		movw r30,r28
+ 394               		0:
+ 395 0036 0190      		ld __tmp_reg__,Z+
+ 396 0038 0020      		tst __tmp_reg__
+ 397 003a 01F4      		brne 0b
+ 398 003c 3197      		sbiw r30,1
+ 399 003e E050      		subi r30,lo8(tx_buf)
+ 400 0040 F040      		sbci r31,hi8(tx_buf)
+ 401 0042 EF5F      		subi r30,lo8(-(1))
+ 402 0044 E093 0000 		sts rfTxInfo+2,r30
+ 182:main.c        ****   rfTxInfo.destAddr = 0x1215;
+ 404               	.LM10:
+ 405 0048 85E1      		ldi r24,lo8(21)
+ 406 004a 92E1      		ldi r25,lo8(18)
+ 407 004c 9093 0000 		sts rfTxInfo+1,r25
+ 408 0050 8093 0000 		sts rfTxInfo,r24
+ 183:main.c        ****   rfTxInfo.cca = 0;
+ 410               	.LM11:
+ 411 0054 1092 0000 		sts rfTxInfo+5,__zero_reg__
+ 184:main.c        ****   rfTxInfo.ackRequest = 0;
+ 413               	.LM12:
+ 414 0058 1092 0000 		sts rfTxInfo+6,__zero_reg__
+ 185:main.c        **** 
+ 186:main.c        ****   printf( "Sending\r\n" );
+ 416               	.LM13:
+ 417 005c 80E0      		ldi r24,lo8(.LC1)
+ 418 005e 90E0      		ldi r25,hi8(.LC1)
+ 419 0060 0E94 0000 		call puts
+ 187:main.c        ****   if(rf_tx_packet(&rfTxInfo) != 1){
+ 421               	.LM14:
+ 422 0064 80E0      		ldi r24,lo8(rfTxInfo)
+ 423 0066 90E0      		ldi r25,hi8(rfTxInfo)
+ 424 0068 0E94 0000 		call rf_tx_packet
+ 425 006c 8130      		cpi r24,lo8(1)
+ 426 006e 01F0      		breq .L1
+ 188:main.c        ****     printf("--- RF_TX ERROR ---\r\n");
+ 428               	.LM15:
+ 429 0070 80E0      		ldi r24,lo8(.LC2)
+ 430 0072 90E0      		ldi r25,hi8(.LC2)
+ 431               	/* epilogue start */
+ 189:main.c        ****   }
+ 190:main.c        **** 
+ 191:main.c        **** }
+ 433               	.LM16:
+ 434 0074 DF91      		pop r29
+ 435 0076 CF91      		pop r28
+ 188:main.c        ****     printf("--- RF_TX ERROR ---\r\n");
+ 437               	.LM17:
+ 438 0078 0C94 0000 		jmp puts
+ 439               	.L1:
+ 440               	/* epilogue start */
+ 442               	.LM18:
+ 443 007c DF91      		pop r29
+ 444 007e CF91      		pop r28
+ 445 0080 0895      		ret
+ 447               	.Lscope1:
+ 449               		.stabd	78,0,0
+ 450               		.section	.rodata.str1.1
+ 451               	.LC3:
+ 452 0028 474C 4F53 		.string	"GLOSSBee TX\r"
+ 452      5342 6565 
+ 452      2054 580D 
+ 452      00
+ 453               	.LC4:
+ 454 0035 696E 7420 		.string	"int return code: %d\r\n"
+ 454      7265 7475 
+ 454      726E 2063 
+ 454      6F64 653A 
+ 454      2025 640D 
+ 455               	.LC5:
+ 456 004b 4C6F 6F70 		.string	"Loop starting...\r"
+ 456      2073 7461 
+ 456      7274 696E 
+ 456      672E 2E2E 
+ 456      0D00 
+ 457               		.section	.text.startup,"ax",@progbits
+ 459               	.global	main
+ 461               	main:
+ 462               		.stabd	46,0,0
+  54:main.c        **** {
+ 464               	.LM19:
+ 465               	.LFBB2:
+ 466               	/* prologue: function */
+ 467               	/* frame size = 0 */
+ 468               	/* stack size = 0 */
+ 469               	.L__stack_usage = 0
+  57:main.c        ****     nrk_setup_ports(); 
+ 471               	.LM20:
+ 472 0000 0E94 0000 		call nrk_setup_ports
+  58:main.c        ****     nrk_setup_uart (UART_BAUDRATE_115K2);
+ 474               	.LM21:
+ 475 0004 80E1      		ldi r24,lo8(16)
+ 476 0006 90E0      		ldi r25,0
+ 477 0008 0E94 0000 		call nrk_setup_uart
+  60:main.c        ****     printf( "GLOSSBee TX\r\n" ); 
+ 479               	.LM22:
+ 480 000c 80E0      		ldi r24,lo8(.LC3)
+ 481 000e 90E0      		ldi r25,hi8(.LC3)
+ 482 0010 0E94 0000 		call puts
+  61:main.c        ****     nrk_led_clr(0); 
+ 484               	.LM23:
+ 485 0014 80E0      		ldi r24,0
+ 486 0016 90E0      		ldi r25,0
+ 487 0018 0E94 0000 		call nrk_led_clr
+  62:main.c        ****     nrk_led_clr(1); 
+ 489               	.LM24:
+ 490 001c 81E0      		ldi r24,lo8(1)
+ 491 001e 90E0      		ldi r25,0
+ 492 0020 0E94 0000 		call nrk_led_clr
+  63:main.c        ****     nrk_led_clr(2); 
+ 494               	.LM25:
+ 495 0024 82E0      		ldi r24,lo8(2)
+ 496 0026 90E0      		ldi r25,0
+ 497 0028 0E94 0000 		call nrk_led_clr
+  64:main.c        ****     nrk_led_clr(3); 
+ 499               	.LM26:
+ 500 002c 83E0      		ldi r24,lo8(3)
+ 501 002e 90E0      		ldi r25,0
+ 502 0030 0E94 0000 		call nrk_led_clr
+  66:main.c        ****     rfRxInfo.pPayload = rx_buf;
+ 504               	.LM27:
+ 505 0034 80E0      		ldi r24,lo8(rx_buf)
+ 506 0036 90E0      		ldi r25,hi8(rx_buf)
+ 507 0038 9093 0000 		sts rfRxInfo+5+1,r25
+ 508 003c 8093 0000 		sts rfRxInfo+5,r24
+  67:main.c        ****     rfRxInfo.max_length = RF_MAX_PAYLOAD_SIZE;
+ 510               	.LM28:
+ 511 0040 84E7      		ldi r24,lo8(116)
+ 512 0042 8093 0000 		sts rfRxInfo+4,r24
+  68:main.c        ****     rfRxInfo.ackRequest= 0;
+ 514               	.LM29:
+ 515 0046 1092 0000 		sts rfRxInfo+7,__zero_reg__
+  69:main.c        **** 		nrk_int_enable();
+ 517               	.LM30:
+ 518 004a 0E94 0000 		call nrk_int_enable
+  70:main.c        ****     rf_init (&rfRxInfo, 13, 0x2420, 0x1215);
+ 520               	.LM31:
+ 521 004e 25E1      		ldi r18,lo8(21)
+ 522 0050 32E1      		ldi r19,lo8(18)
+ 523 0052 40E2      		ldi r20,lo8(32)
+ 524 0054 54E2      		ldi r21,lo8(36)
+ 525 0056 6DE0      		ldi r22,lo8(13)
+ 526 0058 80E0      		ldi r24,lo8(rfRxInfo)
+ 527 005a 90E0      		ldi r25,hi8(rfRxInfo)
+ 528 005c 0E94 0000 		call rf_init
+  73:main.c        ****     nrk_gpio_direction(NRK_DEBUG_2, NRK_PIN_INPUT);
+ 530               	.LM32:
+ 531 0060 60E0      		ldi r22,0
+ 532 0062 8091 0000 		lds r24,NRK_DEBUG_2
+ 533 0066 0E94 0000 		call nrk_gpio_direction
+  74:main.c        ****     i = nrk_ext_int_configure( NRK_EXT_INT_2,NRK_LOW_TRIGGER, &fire_tx ); 
+ 535               	.LM33:
+ 536 006a 40E0      		ldi r20,lo8(gs(fire_tx))
+ 537 006c 50E0      		ldi r21,hi8(gs(fire_tx))
+ 538 006e 60E0      		ldi r22,0
+ 539 0070 82E0      		ldi r24,lo8(2)
+ 540 0072 0E94 0000 		call nrk_ext_int_configure
+ 541 0076 C82F      		mov r28,r24
+  75:main.c        ****     nrk_ext_int_enable ( NRK_EXT_INT_2);
+ 543               	.LM34:
+ 544 0078 82E0      		ldi r24,lo8(2)
+ 545 007a 0E94 0000 		call nrk_ext_int_enable
+  76:main.c        ****     printf("int return code: %d\r\n", i);
+ 547               	.LM35:
+ 548 007e 1F92      		push __zero_reg__
+ 549 0080 CF93      		push r28
+ 550 0082 80E0      		ldi r24,lo8(.LC4)
+ 551 0084 90E0      		ldi r25,hi8(.LC4)
+ 552 0086 9F93      		push r25
+ 553 0088 8F93      		push r24
+ 554 008a 0E94 0000 		call printf
+  78:main.c        ****     printf( "Loop starting...\r\n" );
+ 556               	.LM36:
+ 557 008e 80E0      		ldi r24,lo8(.LC5)
+ 558 0090 90E0      		ldi r25,hi8(.LC5)
+ 559 0092 0E94 0000 		call puts
+ 560 0096 0F90      		pop __tmp_reg__
+ 561 0098 0F90      		pop __tmp_reg__
+ 562 009a 0F90      		pop __tmp_reg__
+ 563 009c 0F90      		pop __tmp_reg__
+ 564               	.L5:
+ 565 009e 00C0      		rjmp .L5
+ 567               	.Lscope2:
+ 569               		.stabd	78,0,0
+ 570               		.section	.rodata.str1.1
+ 571               	.LC6:
+ 572 005d 6361 6C6C 		.string	"callback %d %d\n"
+ 572      6261 636B 
+ 572      2025 6420 
+ 572      2564 0A00 
+ 573               		.text
+ 575               	.global	my_callback
+ 577               	my_callback:
+ 578               		.stabd	46,0,0
+ 164:main.c        **** {
+ 580               	.LM37:
+ 581               	.LFBB3:
+ 582               	/* prologue: function */
+ 583               	/* frame size = 0 */
+ 584               	/* stack size = 0 */
+ 585               	.L__stack_usage = 0
+ 167:main.c        **** 		printf( "callback %d %d\n",global_slot,cnt );
+ 587               	.LM38:
+ 588 0082 2091 0000 		lds r18,cnt.3401+1
+ 589 0086 2F93      		push r18
+ 590 0088 2091 0000 		lds r18,cnt.3401
+ 591 008c 2F93      		push r18
+ 592 008e 9F93      		push r25
+ 593 0090 8F93      		push r24
+ 594 0092 80E0      		ldi r24,lo8(.LC6)
+ 595 0094 90E0      		ldi r25,hi8(.LC6)
+ 596 0096 9F93      		push r25
+ 597 0098 8F93      		push r24
+ 598 009a 0E94 0000 		call printf
+ 168:main.c        **** 		cnt++;
+ 600               	.LM39:
+ 601 009e 8091 0000 		lds r24,cnt.3401
+ 602 00a2 9091 0000 		lds r25,cnt.3401+1
+ 603 00a6 0196      		adiw r24,1
+ 604 00a8 9093 0000 		sts cnt.3401+1,r25
+ 605 00ac 8093 0000 		sts cnt.3401,r24
+ 606 00b0 0F90      		pop __tmp_reg__
+ 607 00b2 0F90      		pop __tmp_reg__
+ 608 00b4 0F90      		pop __tmp_reg__
+ 609 00b6 0F90      		pop __tmp_reg__
+ 610 00b8 0F90      		pop __tmp_reg__
+ 611 00ba 0F90      		pop __tmp_reg__
+ 612 00bc 0895      		ret
+ 617               	.Lscope3:
+ 619               		.stabd	78,0,0
+ 620               		.section	.rodata.str1.1
+ 621               	.LC7:
+ 622 006d 696E 7465 		.string	"interrupt!"
+ 622      7272 7570 
+ 622      7421 00
+ 623               		.text
+ 626               	.global	rf_rx_callback
+ 628               	rf_rx_callback:
+ 629               		.stabd	46,0,0
+ 192:main.c        **** 
+ 193:main.c        **** RF_RX_INFO* rf_rx_callback(RF_RX_INFO *pRRI){
+ 631               	.LM40:
+ 632               	.LFBB4:
+ 633 00be CF93      		push r28
+ 634 00c0 DF93      		push r29
+ 635               	/* prologue: function */
+ 636               	/* frame size = 0 */
+ 637               	/* stack size = 2 */
+ 638               	.L__stack_usage = 2
+ 639 00c2 EC01      		movw r28,r24
+ 194:main.c        ****   nrk_led_set(ORANGE_LED);
+ 641               	.LM41:
+ 642 00c4 82E0      		ldi r24,lo8(2)
+ 643 00c6 90E0      		ldi r25,0
+ 644 00c8 0E94 0000 		call nrk_led_set
+ 195:main.c        ****   printf("interrupt!");
+ 646               	.LM42:
+ 647 00cc 20E0      		ldi r18,lo8(.LC7)
+ 648 00ce 30E0      		ldi r19,hi8(.LC7)
+ 649 00d0 3F93      		push r19
+ 650 00d2 2F93      		push r18
+ 651 00d4 0E94 0000 		call printf
+ 196:main.c        ****   nrk_led_clr(ORANGE_LED);
+ 653               	.LM43:
+ 654 00d8 82E0      		ldi r24,lo8(2)
+ 655 00da 90E0      		ldi r25,0
+ 656 00dc 0E94 0000 		call nrk_led_clr
+ 197:main.c        ****   return pRRI;
+ 658               	.LM44:
+ 659 00e0 0F90      		pop __tmp_reg__
+ 660 00e2 0F90      		pop __tmp_reg__
+ 198:main.c        **** }
+ 662               	.LM45:
+ 663 00e4 CE01      		movw r24,r28
+ 664               	/* epilogue start */
+ 665 00e6 DF91      		pop r29
+ 666 00e8 CF91      		pop r28
+ 667 00ea 0895      		ret
+ 669               	.Lscope4:
+ 671               		.stabd	78,0,0
+ 672               		.section	.rodata.str1.1
+ 673               	.LC8:
+ 674 0078 696E 7465 		.string	"interrupt!2"
+ 674      7272 7570 
+ 674      7421 3200 
+ 675               		.text
+ 677               	.global	halRfReceivePacket
+ 679               	halRfReceivePacket:
+ 680               		.stabd	46,0,0
+ 199:main.c        **** 
+ 200:main.c        **** void halRfReceivePacket(){
+ 682               	.LM46:
+ 683               	.LFBB5:
+ 684               	/* prologue: function */
+ 685               	/* frame size = 0 */
+ 686               	/* stack size = 0 */
+ 687               	.L__stack_usage = 0
+ 201:main.c        ****   nrk_led_set(ORANGE_LED);
+ 689               	.LM47:
+ 690 00ec 82E0      		ldi r24,lo8(2)
+ 691 00ee 90E0      		ldi r25,0
+ 692 00f0 0E94 0000 		call nrk_led_set
+ 202:main.c        ****   printf("interrupt!2");
+ 694               	.LM48:
+ 695 00f4 80E0      		ldi r24,lo8(.LC8)
+ 696 00f6 90E0      		ldi r25,hi8(.LC8)
+ 697 00f8 9F93      		push r25
+ 698 00fa 8F93      		push r24
+ 699 00fc 0E94 0000 		call printf
+ 203:main.c        ****   nrk_led_clr(ORANGE_LED);
+ 701               	.LM49:
+ 702 0100 0F90      		pop __tmp_reg__
+ 703 0102 0F90      		pop __tmp_reg__
+ 704 0104 82E0      		ldi r24,lo8(2)
+ 705 0106 90E0      		ldi r25,0
+ 706 0108 0C94 0000 		jmp nrk_led_clr
+ 708               	.Lscope5:
+ 710               		.stabd	78,0,0
+ 711               		.section	.rodata.str1.1
+ 712               	.LC9:
+ 713 0084 696E 7465 		.string	"interrupt!3"
+ 713      7272 7570 
+ 713      7421 3300 
+ 714               		.text
+ 716               	.global	basicRfReceivePacket
+ 718               	basicRfReceivePacket:
+ 719               		.stabd	46,0,0
+ 204:main.c        **** }
+ 205:main.c        **** 
+ 206:main.c        **** void basicRfReceivePacket(){
+ 721               	.LM50:
+ 722               	.LFBB6:
+ 723               	/* prologue: function */
+ 724               	/* frame size = 0 */
+ 725               	/* stack size = 0 */
+ 726               	.L__stack_usage = 0
+ 207:main.c        ****   nrk_led_set(ORANGE_LED);
+ 728               	.LM51:
+ 729 010c 82E0      		ldi r24,lo8(2)
+ 730 010e 90E0      		ldi r25,0
+ 731 0110 0E94 0000 		call nrk_led_set
+ 208:main.c        ****   printf("interrupt!3");
+ 733               	.LM52:
+ 734 0114 80E0      		ldi r24,lo8(.LC9)
+ 735 0116 90E0      		ldi r25,hi8(.LC9)
+ 736 0118 9F93      		push r25
+ 737 011a 8F93      		push r24
+ 738 011c 0E94 0000 		call printf
+ 209:main.c        ****   nrk_led_clr(ORANGE_LED);
+ 740               	.LM53:
+ 741 0120 0F90      		pop __tmp_reg__
+ 742 0122 0F90      		pop __tmp_reg__
+ 743 0124 82E0      		ldi r24,lo8(2)
+ 744 0126 90E0      		ldi r25,0
+ 745 0128 0C94 0000 		jmp nrk_led_clr
+ 747               	.Lscope6:
+ 749               		.stabd	78,0,0
+ 750               		.local	cnt.3401
+ 751               		.comm	cnt.3401,2,1
+ 752               		.comm	rx_buf,116,1
+ 753               		.comm	tx_buf,116,1
+ 754               		.comm	rfRxInfo,12,1
+ 755               		.comm	rfTxInfo,7,1
+ 756               		.comm	pc_int0_callback,2,1
+ 757               		.comm	ext_int2_callback,2,1
+ 758               		.comm	ext_int1_callback,2,1
+ 759               		.comm	ext_int0_callback,2,1
+ 760               		.comm	app_timer0_prescale,1,1
+ 761               		.comm	app_timer0_callback,2,1
+ 762               		.comm	_nrk_time_trigger,1,1
+ 763               		.comm	_nrk_prev_timer_val,1,1
+ 764               		.comm	error_num,1,1
+ 765               		.comm	error_task,1,1
+ 766               		.comm	nrk_kernel_stk_ptr,2,1
+ 767               		.comm	nrk_idle_task_stk,128,1
+ 768               		.comm	_nrk_signal_list,4,1
+ 787               	.Letext0:
+ 788               		.ident	"GCC: (GNU) 4.8.2"
+ 789               	.global __do_copy_data
+ 790               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+     /tmp/cc1B73zH.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/cc1B73zH.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/cc1B73zH.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/cc1B73zH.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/cc1B73zH.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/cc1B73zH.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/cc1B73zH.s:345    .text:0000000000000000 fire_tx
+                            *COM*:0000000000000074 tx_buf
+                            *COM*:0000000000000007 rfTxInfo
+     /tmp/cc1B73zH.s:461    .text.startup:0000000000000000 main
+                            *COM*:0000000000000074 rx_buf
+                            *COM*:000000000000000c rfRxInfo
+     /tmp/cc1B73zH.s:577    .text:0000000000000082 my_callback
+                             .bss:0000000000000000 cnt.3401
+     /tmp/cc1B73zH.s:628    .text:00000000000000be rf_rx_callback
+     /tmp/cc1B73zH.s:679    .text:00000000000000ec halRfReceivePacket
+     /tmp/cc1B73zH.s:718    .text:000000000000010c basicRfReceivePacket
+                            *COM*:0000000000000002 pc_int0_callback
+                            *COM*:0000000000000002 ext_int2_callback
+                            *COM*:0000000000000002 ext_int1_callback
+                            *COM*:0000000000000002 ext_int0_callback
+                            *COM*:0000000000000001 app_timer0_prescale
+                            *COM*:0000000000000002 app_timer0_callback
+                            *COM*:0000000000000001 _nrk_time_trigger
+                            *COM*:0000000000000001 _nrk_prev_timer_val
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000080 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+nrk_led_toggle
+strcpy
+puts
+rf_tx_packet
+nrk_setup_ports
+nrk_setup_uart
+nrk_led_clr
+nrk_int_enable
+rf_init
+NRK_DEBUG_2
+nrk_gpio_direction
+nrk_ext_int_configure
+nrk_ext_int_enable
+printf
+nrk_led_set
+__do_copy_data
+__do_clear_bss

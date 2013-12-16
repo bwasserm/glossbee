@@ -1,0 +1,57 @@
+   1               		.file	"nrk_stats.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 316               		.comm	error_num,1,1
+ 317               		.comm	error_task,1,1
+ 318               		.comm	nrk_system_time,8,1
+ 319               		.comm	nrk_sem_list,3,1
+ 320               		.comm	_nrk_resource_cnt,1,1
+ 321               		.comm	nrk_high_ready_TCB,2,1
+ 322               		.comm	nrk_high_ready_prio,1,1
+ 323               		.comm	nrk_cur_task_TCB,2,1
+ 324               		.comm	nrk_cur_task_prio,1,1
+ 325               		.comm	nrk_wakeup_signal,1,1
+ 326               		.comm	_head_node,2,1
+ 327               		.comm	_free_node,2,1
+ 328               		.comm	_nrk_readyQ,25,1
+ 329               		.comm	nrk_task_TCB,172,1
+ 330               		.comm	nrk_kernel_stk_ptr,2,1
+ 331               		.comm	nrk_idle_task_stk,128,1
+ 332               		.comm	_nrk_signal_list,4,1
+ 351               	.Letext0:
+ 352               		.ident	"GCC: (GNU) 4.8.2"
+ 353               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 nrk_stats.c
+     /tmp/ccv80Wbr.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccv80Wbr.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccv80Wbr.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccv80Wbr.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/ccv80Wbr.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccv80Wbr.s:7      *ABS*:0000000000000001 __zero_reg__
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000008 nrk_system_time
+                            *COM*:0000000000000003 nrk_sem_list
+                            *COM*:0000000000000001 _nrk_resource_cnt
+                            *COM*:0000000000000002 nrk_high_ready_TCB
+                            *COM*:0000000000000001 nrk_high_ready_prio
+                            *COM*:0000000000000002 nrk_cur_task_TCB
+                            *COM*:0000000000000001 nrk_cur_task_prio
+                            *COM*:0000000000000001 nrk_wakeup_signal
+                            *COM*:0000000000000002 _head_node
+                            *COM*:0000000000000002 _free_node
+                            *COM*:0000000000000019 _nrk_readyQ
+                            *COM*:00000000000000ac nrk_task_TCB
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000080 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+__do_clear_bss

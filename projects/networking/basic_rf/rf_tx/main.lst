@@ -1,0 +1,433 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 309               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 310               	.LC0:
+ 311 0000 4261 7369 		.string	"Basic TX...\r"
+ 311      6320 5458 
+ 311      2E2E 2E0D 
+ 311      00
+ 312               	.LC1:
+ 313 000d 5468 6973 		.string	"This is my string counter %d"
+ 313      2069 7320 
+ 313      6D79 2073 
+ 313      7472 696E 
+ 313      6720 636F 
+ 314               	.LC2:
+ 315 002a 5365 6E64 		.string	"Sending\r"
+ 315      696E 670D 
+ 315      00
+ 316               	.LC3:
+ 317 0033 2D2D 2D20 		.string	"--- RF_TX ERROR ---\r"
+ 317      5246 5F54 
+ 317      5820 4552 
+ 317      524F 5220 
+ 317      2D2D 2D0D 
+ 318               		.section	.text.startup,"ax",@progbits
+ 320               	.global	main
+ 322               	main:
+ 323               		.stabd	46,0,0
+   1:main.c        **** /******************************************************************************
+   2:main.c        **** *  Nano-RK, a real-time operating system for sensor networks.
+   3:main.c        **** *  Copyright (C) 2007, Real-Time and Multimedia Lab, Carnegie Mellon University
+   4:main.c        **** *  All rights reserved.
+   5:main.c        **** *
+   6:main.c        **** *  This is the Open Source Version of Nano-RK included as part of a Dual
+   7:main.c        **** *  Licensing Model. If you are unsure which license to use please refer to:
+   8:main.c        **** *  http://www.nanork.org/nano-RK/wiki/Licensing
+   9:main.c        **** *
+  10:main.c        **** *  This program is free software: you can redistribute it and/or modify
+  11:main.c        **** *  it under the terms of the GNU General Public License as published by
+  12:main.c        **** *  the Free Software Foundation, version 2.0 of the License.
+  13:main.c        **** *
+  14:main.c        **** *  This program is distributed in the hope that it will be useful,
+  15:main.c        **** *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  16:main.c        **** *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  17:main.c        **** *  GNU General Public License for more details.
+  18:main.c        **** *
+  19:main.c        **** *  You should have received a copy of the GNU General Public License
+  20:main.c        **** *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  21:main.c        **** *
+  22:main.c        **** *******************************************************************************/
+  23:main.c        **** 
+  24:main.c        **** #include <include.h>
+  25:main.c        **** #include <ulib.h>
+  26:main.c        **** #include <stdio.h>
+  27:main.c        **** #include <hal.h>
+  28:main.c        **** #include <basic_rf.h>
+  29:main.c        **** #include <avr/sleep.h>
+  30:main.c        **** #include <avr/wdt.h>
+  31:main.c        **** #include <avr/eeprom.h>
+  32:main.c        **** 
+  33:main.c        **** 
+  34:main.c        **** void my_callback(uint16_t global_slot );
+  35:main.c        **** 
+  36:main.c        **** RF_TX_INFO rfTxInfo;
+  37:main.c        **** RF_RX_INFO rfRxInfo;
+  38:main.c        **** uint8_t tx_buf[RF_MAX_PAYLOAD_SIZE];
+  39:main.c        **** uint8_t rx_buf[RF_MAX_PAYLOAD_SIZE];
+  40:main.c        **** //------------------------------------------------------------------------------
+  41:main.c        **** //      void main (void)
+  42:main.c        **** //
+  43:main.c        **** //      DESCRIPTION:
+  44:main.c        **** //              Startup routine and main loop
+  45:main.c        **** //------------------------------------------------------------------------------
+  46:main.c        **** int main (void)
+  47:main.c        **** {
+ 325               	.LM0:
+ 326               	.LFBB1:
+ 327               	/* prologue: function */
+ 328               	/* frame size = 0 */
+ 329               	/* stack size = 0 */
+ 330               	.L__stack_usage = 0
+  48:main.c        ****     uint8_t cnt,i,length;
+  49:main.c        **** 
+  50:main.c        ****     nrk_setup_ports(); 
+ 332               	.LM1:
+ 333 0000 0E94 0000 		call nrk_setup_ports
+  51:main.c        ****     nrk_setup_uart (UART_BAUDRATE_115K2);
+ 335               	.LM2:
+ 336 0004 80E1      		ldi r24,lo8(16)
+ 337 0006 90E0      		ldi r25,0
+ 338 0008 0E94 0000 		call nrk_setup_uart
+  52:main.c        ****  
+  53:main.c        ****     printf( "Basic TX...\r\n" ); 
+ 340               	.LM3:
+ 341 000c 80E0      		ldi r24,lo8(.LC0)
+ 342 000e 90E0      		ldi r25,hi8(.LC0)
+ 343 0010 0E94 0000 		call puts
+  54:main.c        ****     nrk_led_set(0); 
+ 345               	.LM4:
+ 346 0014 80E0      		ldi r24,0
+ 347 0016 90E0      		ldi r25,0
+ 348 0018 0E94 0000 		call nrk_led_set
+  55:main.c        ****     nrk_led_set(1); 
+ 350               	.LM5:
+ 351 001c 81E0      		ldi r24,lo8(1)
+ 352 001e 90E0      		ldi r25,0
+ 353 0020 0E94 0000 		call nrk_led_set
+  56:main.c        ****     nrk_led_clr(2); 
+ 355               	.LM6:
+ 356 0024 82E0      		ldi r24,lo8(2)
+ 357 0026 90E0      		ldi r25,0
+ 358 0028 0E94 0000 		call nrk_led_clr
+  57:main.c        ****     nrk_led_clr(3); 
+ 360               	.LM7:
+ 361 002c 83E0      		ldi r24,lo8(3)
+ 362 002e 90E0      		ldi r25,0
+ 363 0030 0E94 0000 		call nrk_led_clr
+  58:main.c        **** /*
+  59:main.c        **** 	    while(1) {
+  60:main.c        **** 		   
+  61:main.c        **** 				for(i=0; i<40; i++ )
+  62:main.c        **** 					halWait(10000);
+  63:main.c        **** 		    nrk_led_toggle(1);
+  64:main.c        **** 
+  65:main.c        **** 	    }
+  66:main.c        **** 
+  67:main.c        **** */
+  68:main.c        ****   
+  69:main.c        ****     rfRxInfo.pPayload = rx_buf;
+ 365               	.LM8:
+ 366 0034 80E0      		ldi r24,lo8(rx_buf)
+ 367 0036 90E0      		ldi r25,hi8(rx_buf)
+ 368 0038 9093 0000 		sts rfRxInfo+5+1,r25
+ 369 003c 8093 0000 		sts rfRxInfo+5,r24
+  70:main.c        ****     rfRxInfo.max_length = RF_MAX_PAYLOAD_SIZE;
+ 371               	.LM9:
+ 372 0040 84E7      		ldi r24,lo8(116)
+ 373 0042 8093 0000 		sts rfRxInfo+4,r24
+  71:main.c        **** 		nrk_int_enable();
+ 375               	.LM10:
+ 376 0046 0E94 0000 		call nrk_int_enable
+  72:main.c        ****     rf_init (&rfRxInfo, 13, 0x2420, 0x1214);
+ 378               	.LM11:
+ 379 004a 24E1      		ldi r18,lo8(20)
+ 380 004c 32E1      		ldi r19,lo8(18)
+ 381 004e 40E2      		ldi r20,lo8(32)
+ 382 0050 54E2      		ldi r21,lo8(36)
+ 383 0052 6DE0      		ldi r22,lo8(13)
+ 384 0054 80E0      		ldi r24,lo8(rfRxInfo)
+ 385 0056 90E0      		ldi r25,hi8(rfRxInfo)
+ 386 0058 0E94 0000 		call rf_init
+  73:main.c        ****     cnt=0;
+ 388               	.LM12:
+ 389 005c D12C      		mov r13,__zero_reg__
+  74:main.c        ****     while(1){
+  75:main.c        **** 
+  76:main.c        **** 
+  77:main.c        ****     // Code to control the CC2591 
+  78:main.c        ****     DPDS1=0x3; 
+ 391               	.LM13:
+ 392 005e 23E0      		ldi r18,lo8(3)
+ 393 0060 922E      		mov r9,r18
+  79:main.c        ****     DDRG=0x1;
+ 395               	.LM14:
+ 396 0062 BB24      		clr r11
+ 397 0064 B394      		inc r11
+  80:main.c        ****     PORTG=0x1;
+  81:main.c        **** 
+  82:main.c        ****     DDRE=0xE0;
+ 399               	.LM15:
+ 400 0066 30EE      		ldi r19,lo8(-32)
+ 401 0068 A32E      		mov r10,r19
+  83:main.c        ****     PORTE=0xE0;
+  84:main.c        **** 
+  85:main.c        **** 
+  86:main.c        **** 
+  87:main.c        **** 
+  88:main.c        **** //				nrk_led_set(GREEN_LED);
+  89:main.c        ****     		rfTxInfo.pPayload=tx_buf;
+ 403               	.LM16:
+ 404 006a C0E0      		ldi r28,lo8(tx_buf)
+ 405 006c D0E0      		ldi r29,hi8(tx_buf)
+  90:main.c        ****     		sprintf( tx_buf, "This is my string counter %d", cnt); 
+ 407               	.LM17:
+ 408 006e 00E0      		ldi r16,lo8(.LC1)
+ 409 0070 10E0      		ldi r17,hi8(.LC1)
+  91:main.c        ****     		rfTxInfo.length= strlen(tx_buf) + 1;
+  92:main.c        **** 				rfTxInfo.destAddr = 0x1215;
+ 411               	.LM18:
+ 412 0072 45E1      		ldi r20,lo8(21)
+ 413 0074 E42E      		mov r14,r20
+ 414 0076 42E1      		ldi r20,lo8(18)
+ 415 0078 F42E      		mov r15,r20
+ 416               	.L6:
+  78:main.c        ****     DPDS1=0x3; 
+ 418               	.LM19:
+ 419 007a 9092 3701 		sts 311,r9
+  79:main.c        ****     DDRG=0x1;
+ 421               	.LM20:
+ 422 007e B3BA      		out 0x13,r11
+  80:main.c        ****     PORTG=0x1;
+ 424               	.LM21:
+ 425 0080 B4BA      		out 0x14,r11
+  82:main.c        ****     DDRE=0xE0;
+ 427               	.LM22:
+ 428 0082 ADB8      		out 0xd,r10
+  83:main.c        ****     PORTE=0xE0;
+ 430               	.LM23:
+ 431 0084 AEB8      		out 0xe,r10
+  89:main.c        ****     		rfTxInfo.pPayload=tx_buf;
+ 433               	.LM24:
+ 434 0086 D093 0000 		sts rfTxInfo+3+1,r29
+ 435 008a C093 0000 		sts rfTxInfo+3,r28
+  90:main.c        ****     		sprintf( tx_buf, "This is my string counter %d", cnt); 
+ 437               	.LM25:
+ 438 008e 1F92      		push __zero_reg__
+ 439 0090 DF92      		push r13
+ 440 0092 1F93      		push r17
+ 441 0094 0F93      		push r16
+ 442 0096 DF93      		push r29
+ 443 0098 CF93      		push r28
+ 444 009a 0E94 0000 		call sprintf
+  91:main.c        ****     		rfTxInfo.length= strlen(tx_buf) + 1;
+ 446               	.LM26:
+ 447 009e FE01      		movw r30,r28
+ 448               		0:
+ 449 00a0 0190      		ld __tmp_reg__,Z+
+ 450 00a2 0020      		tst __tmp_reg__
+ 451 00a4 01F4      		brne 0b
+ 452 00a6 3197      		sbiw r30,1
+ 453 00a8 E050      		subi r30,lo8(tx_buf)
+ 454 00aa F040      		sbci r31,hi8(tx_buf)
+ 455 00ac EF5F      		subi r30,lo8(-(1))
+ 456 00ae E093 0000 		sts rfTxInfo+2,r30
+ 458               	.LM27:
+ 459 00b2 F092 0000 		sts rfTxInfo+1,r15
+ 460 00b6 E092 0000 		sts rfTxInfo,r14
+  93:main.c        **** 				rfTxInfo.cca = 0;
+ 462               	.LM28:
+ 463 00ba 1092 0000 		sts rfTxInfo+5,__zero_reg__
+  94:main.c        **** 				rfTxInfo.ackRequest = 0;
+ 465               	.LM29:
+ 466 00be 1092 0000 		sts rfTxInfo+6,__zero_reg__
+  95:main.c        **** 				
+  96:main.c        **** 				printf( "Sending\r\n" );
+ 468               	.LM30:
+ 469 00c2 80E0      		ldi r24,lo8(.LC2)
+ 470 00c4 90E0      		ldi r25,hi8(.LC2)
+ 471 00c6 0E94 0000 		call puts
+  97:main.c        **** 				if(rf_tx_packet(&rfTxInfo) != 1)
+ 473               	.LM31:
+ 474 00ca 80E0      		ldi r24,lo8(rfTxInfo)
+ 475 00cc 90E0      		ldi r25,hi8(rfTxInfo)
+ 476 00ce 0E94 0000 		call rf_tx_packet
+ 477 00d2 0F90      		pop __tmp_reg__
+ 478 00d4 0F90      		pop __tmp_reg__
+ 479 00d6 0F90      		pop __tmp_reg__
+ 480 00d8 0F90      		pop __tmp_reg__
+ 481 00da 0F90      		pop __tmp_reg__
+ 482 00dc 0F90      		pop __tmp_reg__
+ 483 00de 8130      		cpi r24,lo8(1)
+ 484 00e0 01F0      		breq .L2
+  98:main.c        **** 					printf("--- RF_TX ERROR ---\r\n");
+ 486               	.LM32:
+ 487 00e2 80E0      		ldi r24,lo8(.LC3)
+ 488 00e4 90E0      		ldi r25,hi8(.LC3)
+ 489 00e6 0E94 0000 		call puts
+ 490               	.L2:
+  99:main.c        **** 				cnt++;
+ 492               	.LM33:
+ 493 00ea D394      		inc r13
+ 494 00ec 90E5      		ldi r25,lo8(80)
+ 495 00ee C92E      		mov r12,r25
+ 496               	.L4:
+ 100:main.c        **** 		
+ 101:main.c        **** 				for(i=0; i<80; i++ )
+ 102:main.c        **** 					halWait(10000);
+ 498               	.LM34:
+ 499 00f0 80E1      		ldi r24,lo8(16)
+ 500 00f2 97E2      		ldi r25,lo8(39)
+ 501 00f4 0E94 0000 		call halWait
+ 502 00f8 CA94      		dec r12
+ 101:main.c        **** 				for(i=0; i<80; i++ )
+ 504               	.LM35:
+ 505 00fa 01F4      		brne .L4
+ 101:main.c        **** 				for(i=0; i<80; i++ )
+ 507               	.LM36:
+ 508 00fc 84E1      		ldi r24,lo8(20)
+ 509 00fe C82E      		mov r12,r24
+ 510               	.L7:
+ 103:main.c        **** //				nrk_led_clr(GREEN_LED);
+ 104:main.c        **** 				for(i=0; i<20; i++ )
+ 105:main.c        **** 					halWait(10000);
+ 512               	.LM37:
+ 513 0100 80E1      		ldi r24,lo8(16)
+ 514 0102 97E2      		ldi r25,lo8(39)
+ 515 0104 0E94 0000 		call halWait
+ 516 0108 CA94      		dec r12
+ 104:main.c        **** 				for(i=0; i<20; i++ )
+ 518               	.LM38:
+ 519 010a 01F4      		brne .L7
+ 520 010c 00C0      		rjmp .L6
+ 525               	.Lscope1:
+ 527               		.stabd	78,0,0
+ 528               		.section	.rodata.str1.1
+ 529               	.LC4:
+ 530 0048 6361 6C6C 		.string	"callback %d %d\n"
+ 530      6261 636B 
+ 530      2025 6420 
+ 530      2564 0A00 
+ 531               		.text
+ 533               	.global	my_callback
+ 535               	my_callback:
+ 536               		.stabd	46,0,0
+ 106:main.c        **** 		}
+ 107:main.c        **** 
+ 108:main.c        **** }
+ 109:main.c        **** 
+ 110:main.c        **** 
+ 111:main.c        **** void my_callback(uint16_t global_slot )
+ 112:main.c        **** {
+ 538               	.LM39:
+ 539               	.LFBB2:
+ 540               	/* prologue: function */
+ 541               	/* frame size = 0 */
+ 542               	/* stack size = 0 */
+ 543               	.L__stack_usage = 0
+ 113:main.c        **** 		static uint16_t cnt;
+ 114:main.c        **** 
+ 115:main.c        **** 		printf( "callback %d %d\n",global_slot,cnt );
+ 545               	.LM40:
+ 546 0000 2091 0000 		lds r18,cnt.3161+1
+ 547 0004 2F93      		push r18
+ 548 0006 2091 0000 		lds r18,cnt.3161
+ 549 000a 2F93      		push r18
+ 550 000c 9F93      		push r25
+ 551 000e 8F93      		push r24
+ 552 0010 80E0      		ldi r24,lo8(.LC4)
+ 553 0012 90E0      		ldi r25,hi8(.LC4)
+ 554 0014 9F93      		push r25
+ 555 0016 8F93      		push r24
+ 556 0018 0E94 0000 		call printf
+ 116:main.c        **** 		cnt++;
+ 558               	.LM41:
+ 559 001c 8091 0000 		lds r24,cnt.3161
+ 560 0020 9091 0000 		lds r25,cnt.3161+1
+ 561 0024 0196      		adiw r24,1
+ 562 0026 9093 0000 		sts cnt.3161+1,r25
+ 563 002a 8093 0000 		sts cnt.3161,r24
+ 564 002e 0F90      		pop __tmp_reg__
+ 565 0030 0F90      		pop __tmp_reg__
+ 566 0032 0F90      		pop __tmp_reg__
+ 567 0034 0F90      		pop __tmp_reg__
+ 568 0036 0F90      		pop __tmp_reg__
+ 569 0038 0F90      		pop __tmp_reg__
+ 570 003a 0895      		ret
+ 575               	.Lscope2:
+ 577               		.stabd	78,0,0
+ 580               	.global	rf_rx_callback
+ 582               	rf_rx_callback:
+ 583               		.stabd	46,0,0
+ 117:main.c        **** }
+ 118:main.c        **** 
+ 119:main.c        **** 
+ 120:main.c        **** 
+ 121:main.c        **** /**
+ 122:main.c        ****  *  This is a callback if you require immediate response to a packet
+ 123:main.c        ****  */
+ 124:main.c        **** RF_RX_INFO *rf_rx_callback (RF_RX_INFO * pRRI)
+ 125:main.c        **** {
+ 585               	.LM42:
+ 586               	.LFBB3:
+ 587               	/* prologue: function */
+ 588               	/* frame size = 0 */
+ 589               	/* stack size = 0 */
+ 590               	.L__stack_usage = 0
+ 126:main.c        ****     // Any code here gets called the instant a packet is received from the interrupt   
+ 127:main.c        ****     return pRRI;
+ 128:main.c        **** }
+ 592               	.LM43:
+ 593 003c 0895      		ret
+ 595               	.Lscope3:
+ 597               		.stabd	78,0,0
+ 598               		.local	cnt.3161
+ 599               		.comm	cnt.3161,2,1
+ 600               		.comm	rx_buf,116,1
+ 601               		.comm	tx_buf,116,1
+ 602               		.comm	rfRxInfo,12,1
+ 603               		.comm	rfTxInfo,7,1
+ 604               		.comm	_nrk_signal_list,4,1
+ 611               	.Letext0:
+ 612               		.ident	"GCC: (GNU) 4.8.2"
+ 613               	.global __do_copy_data
+ 614               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+     /tmp/ccCJ3HDr.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccCJ3HDr.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccCJ3HDr.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccCJ3HDr.s:5      *ABS*:000000000000003b __RAMPZ__
+     /tmp/ccCJ3HDr.s:6      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccCJ3HDr.s:7      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccCJ3HDr.s:322    .text.startup:0000000000000000 main
+                            *COM*:0000000000000074 rx_buf
+                            *COM*:000000000000000c rfRxInfo
+                            *COM*:0000000000000074 tx_buf
+                            *COM*:0000000000000007 rfTxInfo
+     /tmp/ccCJ3HDr.s:535    .text:0000000000000000 my_callback
+                             .bss:0000000000000000 cnt.3161
+     /tmp/ccCJ3HDr.s:582    .text:000000000000003c rf_rx_callback
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+nrk_setup_ports
+nrk_setup_uart
+puts
+nrk_led_set
+nrk_led_clr
+nrk_int_enable
+rf_init
+sprintf
+rf_tx_packet
+halWait
+printf
+__do_copy_data
+__do_clear_bss
